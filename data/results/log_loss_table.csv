@@ -1,0 +1,6 @@
+model,multi_season_log_loss,mae,description
+baseline,0.5422,1.831,"Constant league K rate. The naive market floor."
+pa_logistic,0.5300,1.779,"PA-level logistic regression with all engineered features (M1-M7)"
+pa_sim,0.5367,1.787,"PA-level Monte Carlo simulator over Beta posteriors per pitcher × per matchup"
+pa_sim_calibrated,0.5342,1.779,"PA-level sim + isotonic calibration on start-level over-probabilities"
+pitch_sim,0.5702,1.931,"Pitch-by-pitch simulator: cascaded outcome models (swing/whiff/CS/foul/arsenal) + AB rollout"

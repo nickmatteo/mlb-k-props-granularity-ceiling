@@ -1,0 +1,4 @@
+estimator,corr_with_true,mae,std_of_estimate
+as_of_prior,0.975,0.0066,0.0369
+microstructure_sim,0.449,0.0285,0.0241
+true_rate,1.0,0.0,0.0378

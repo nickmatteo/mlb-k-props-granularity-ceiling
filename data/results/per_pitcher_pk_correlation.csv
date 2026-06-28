@@ -1,0 +1,4 @@
+estimator,n_pitchers,pearson_r,mae,std_of_estimate,description
+as_of_prior,241,0.576,0.0364,0.0379,"Cumulative as-of K rate per pitcher with shrinkage to league mean (last train-set value per pitcher)"
+pitch_sim,241,0.378,0.0412,0.0307,"Pitch-by-pitch simulator: per-pitcher mean K rate averaged over a 1200-AB simulated pool"
+realized,241,1.000,0.0000,0.0525,"Realized K rate per pitcher over the chronological holdout (>=50 test PAs required for stability)"
