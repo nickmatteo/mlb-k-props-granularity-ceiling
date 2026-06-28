@@ -263,7 +263,7 @@ If you reference this work:
             PA-level priors for pre-game MLB K-prop prediction},
   author = {Nicholas Matteo},
   year   = {2026},
-  howpublished = {\url{https://github.com/Shrek3294/mlb-k-props-granularity-ceiling}},
+  howpublished = {\url{https://github.com/nickmatteo/mlb-k-props-granularity-ceiling}},
 }
 ```
 
