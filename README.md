@@ -18,9 +18,9 @@ The mechanism is conclusive and structural, not a tuning problem. On 241 holdout
 
 The simulator squashes good and bad pitchers toward the league mean. Its per-AB **mean** is a worse estimator than the prior, even though every component model (P(swing), P(whiff | swing), P(called strike | take), P(foul | contact), arsenal multinomial) individually beats its flat-rate baseline by a meaningful margin.
 
-The deeper principle: **at the start level (~24 ABs per start), Central Limit Theorem washout makes the per-AB mean the only quantity that survives aggregation.** Pitch-level architecture cannot beat PA-level when the bet/prediction unit aggregates over many micro-units AND the pitch-level model fails to recover the per-unit mean.
+The deeper principle: **pitch-level modeling is not useless — it is misallocated for pre-game full-start K props unless it improves the per-pitcher mean K probability.** At the start level (~24 ABs per start), Central Limit Theorem aggregation makes the per-AB mean the dominant first-order term in the K-count distribution. Second-order effects (variance heterogeneity, BF distribution, deep-count exits, walk rate) can still survive aggregation. But the simulator fails on the *first-order* mean term, which is sufficient to explain the result — a microstructure architecture cannot rescue an aggregate prediction by capturing second-order effects when its first-order signal is already worse than a simple prior's.
 
-This generalizes beyond baseball: pre-event aggregated prediction problems are bounded by per-unit mean estimation quality, regardless of how rich your microstructure model is.
+This generalizes beyond baseball: pre-event aggregated prediction problems are bounded by per-unit mean estimation quality. Microstructure adds value only when it beats the prior on the per-unit mean.
 
 ---
 
@@ -123,25 +123,9 @@ By every component-level metric, the pitch-level architecture is sound.
 
 ---
 
-## The headline result
+## The mechanism: per-pitcher K-rate correlation
 
-Multi-season backtest on 7,808 test starts, primary score = average log loss across K lines (K5.5, K6.5, K7.5, K8.5):
-
-| Model | Multi-season K log loss | MAE on K count |
-|---|---:|---:|
-| Constant league K rate (baseline) | 0.5422 | 1.83 |
-| PA logistic + M1-M7 | **0.5300** | 1.78 |
-| PA simulator | 0.5367 | 1.79 |
-| PA simulator + calibration | 0.5342 | 1.78 |
-| **Pitch-level simulator** | **0.5702** | 1.93 |
-
-The pitch-level simulator is **worst of every architecture, including the constant-rate baseline.** This is not a hyperparameter sensitivity. It's not a calibration issue. The result is robust across calibration tiers, line counts, season splits, and pitcher subpopulations.
-
----
-
-## Why: per-pitcher implied K-rate correlation
-
-The diagnostic that closed the case. Computed on the same chronological holdout, restricted to 241 pitchers with ≥50 plate appearances during the test period (for a stable realized rate):
+The simulator fails on the first-order signal — its estimate of each pitcher's mean K rate. Computed on the same chronological holdout, restricted to 241 pitchers with ≥50 plate appearances during the test period (for a stable realized rate):
 
 | Per-pitcher p_K estimator | Pearson r with realized K rate | MAE | Std of estimate |
 |---|---:|---:|---:|
@@ -162,20 +146,36 @@ The dumb prior wins because it doesn't try to predict why; it just measures what
 
 ---
 
+## The downstream consequence: log loss
+
+Once the simulator's per-pitcher mean is worse than the prior's, the aggregate K-count distribution is worse, and the per-line over-probability is worse. Multi-season backtest on 7,808 test starts, primary score = average log loss across K lines (K5.5, K6.5, K7.5, K8.5):
+
+| Model | Multi-season K log loss | MAE on K count |
+|---|---:|---:|
+| Constant league K rate (baseline) | 0.5422 | 1.83 |
+| PA logistic + M1-M7 | **0.5300** | 1.78 |
+| PA simulator | 0.5367 | 1.79 |
+| PA simulator + calibration | 0.5342 | 1.78 |
+| **Pitch-level simulator** | **0.5702** | 1.93 |
+
+The pitch-level simulator is **worst of every architecture, including the constant-rate baseline.** This is not a hyperparameter sensitivity. It's not a calibration issue. The result is robust across calibration tiers, line counts, season splits, and pitcher subpopulations — because the underlying mechanism (first-order mean shrinkage) is fixed and dominant.
+
+---
+
 ## The CLT argument
 
 A starting pitcher's K count over a single start is a Poisson-binomial-distributed sum of K outcomes over ~24 ABs. The variance of that count is bounded by the variance of the per-AB K probability.
 
 At ~24 ABs per start:
 - The aggregate distribution has standard error approximately √(24 · p̄ · (1 - p̄)) ≈ 2.3 Ks at p̄ = 0.23
-- Within-AB structure (pitch sequencing, count evolution, location, foul progression) averages out across 24 independent ABs
-- What survives aggregation is the **mean** of the per-AB K probabilities
+- The first-order term in the K-count distribution is the **mean** of the per-AB K probabilities
+- Second-order effects survive aggregation but are dominated by the first-order mean term: variance heterogeneity (different pitchers have different K-rate variances across batters), BF distribution (early hooks reduce the count), walk rate (independent of K probability but affects BF), deep-count exits (pitch-count efficiency caps BF), and matchup-specific arsenal allocation
 
-This is a Central Limit Theorem washout. The aggregate is dominated by the mean. If your model produces a worse mean, your aggregate prediction is worse, no matter how rich your microstructure model is.
+A microstructure architecture (pitch-level model) could in principle improve aggregate prediction by capturing those second-order effects more accurately than aggregate priors. **But this only matters when the first-order mean term is at least competitive with the prior.** In our case the simulator's per-pitcher mean (r = 0.378) is worse than the prior (r = 0.576). The simulator loses the first-order term decisively, and the second-order effects it might recover are insufficient to overcome that deficit.
 
-Sharp shops do use pitch-by-pitch modeling — for in-game / live-tick props where the bet unit is the current at-bat or the current pitch. There, microstructure compounds rather than averaging. For pre-game start-level props, microstructure is washed out by the time the bet settles.
+Sharp shops do use pitch-by-pitch modeling — for in-game / live-tick props where the bet unit is the current at-bat or the current pitch. There, microstructure compounds rather than averaging, and the relevant "mean" estimation problem is at a different unit of aggregation (one AB rather than one start). For pre-game start-level props, microstructure adds value only when it beats the prior on the per-start mean.
 
-This is the result. The architecture matters less than the per-unit mean estimation quality when the prediction target aggregates over many micro-units.
+This is the result. **Microstructure architectures are not useless for aggregated targets — they are misallocated unless they beat the prior on the per-unit mean.**
 
 ---
 
@@ -214,32 +214,65 @@ The takeaway is consistent: at start-level aggregation, the per-pitcher mean dom
 
 ---
 
-## Reproducibility
+## Reproducibility — and its limitations
 
-This repository contains the headline numbers (`data/results/`), the figures (`figures/`), and a minimal reproduction harness (`code/`) sufficient to verify the correlation diagnostic on synthetic data.
+This repository contains the headline numbers (`data/results/`), the figures (`figures/`), and a minimal reproduction harness (`code/`) sufficient to verify the **mechanism** on synthetic data.
 
-The full backtest harness (which depends on a large multi-season Statcast pitch table, pybaseball, Baseball Savant scrapes, FanGraphs leaderboards via authenticated browser session, and the Open-Meteo API) lives in the private parent project. Synthetic test data + a minimal end-to-end reproduction is provided here.
+### What this repository provides
 
-### Running the correlation diagnostic
+- The empirical results (`data/results/log_loss_table.csv` and `data/results/per_pitcher_pk_correlation.csv`) — these are the actual outputs of the private-project backtest commands cited below
+- The empirical figures (`figures/correlation_scatter_empirical.png`, `figures/log_loss_bar.png`)
+- A **synthetic mechanism reproduction** (`code/run_correlation_diagnostic.py`) — generates 200 synthetic pitchers with hidden skill drawn from a realistic distribution, trains a "microstructure" proxy on noisy radar features only, shows the proxy shrinks toward league mean. This illustrates the shrinkage mechanism in a controlled setting; it does NOT regenerate the empirical 0.576/0.378 correlation numbers from the actual MLB data.
+
+### What this repository does NOT provide
+
+The full backtest harness depends on the private parent project. Specifically not included:
+- Multi-season Statcast pitch ingestion (~4.5M-row pitch table)
+- pybaseball + Baseball Savant catcher framing CSV pipelines
+- FanGraphs Stuff+/Location+/Pitching+ leaderboard scrapes (via authenticated browser session)
+- Open-Meteo weather feature builders
+- The leakage-safe as-of feature engineering for ~24 PA-level features
+- The walk-forward backtest harness with chronological holdouts
+- The PA-level simulator (`PASimModel`) and pitch-level simulator (`PaPitchSimModel`) implementations
+- The per-count-state calibration layer
+- The PA-level logistic regression with M1-M7 feature wiring
+
+### What was actually run to produce the headline numbers
+
+The empirical numbers in this repository were produced by these commands in the private parent project (verified in the same session that produced the writeup):
+
+```bash
+barrel research-snapshot                    # baseline / pa / sim / sim-cal multi-season scores
+barrel backtest --model pitch-sim           # pitch-level simulator multi-season score
+python scripts/correlation_diagnostic.py    # per-pitcher correlation diagnostic
+```
+
+A reader auditing the work has to either (a) take the headline numbers on faith based on the methodological description, or (b) recompute them on their own multi-season Statcast pull using the architecture described in this README. The synthetic harness in `code/` demonstrates the mechanism's plausibility but cannot independently verify the empirical magnitudes.
+
+This is a real limitation. The negative result is presented as research methodology and a hypothesis-testing framework, NOT as an independently auditable empirical claim. Treat the writeup accordingly.
+
+### Running the synthetic mechanism reproduction
 
 ```bash
 cd code
 pip install -r requirements.txt
 python run_correlation_diagnostic.py
-# Outputs: figures/correlation_scatter.png and data/results/per_pitcher_pk_correlation.csv
+# Outputs: figures/correlation_scatter.png and data/results/diagnostic_summary.csv
 ```
 
 ---
 
 ## Takeaways
 
-1. **Validate the per-unit mean before believing microstructure adds value.** If your microstructure model doesn't beat a strong prior on the aggregated mean, the architecture is not the answer.
+1. **Microstructure is not useless — it is misallocated unless it beats the prior on the per-unit mean.** This is the central reframe. The pitch-level architecture isn't wrong; it's a tool whose value depends on whether its per-pitcher mean estimate is competitive with an aggregate prior. When it isn't, the architecture cannot recover.
 
-2. **Component-level metrics are necessary but not sufficient.** Every component of the pitch-level architecture beat its flat baseline. The aggregate failed anyway. Test at the prediction unit, not the component unit.
+2. **Validate the per-unit mean before believing microstructure adds value.** A trivial check — correlate your microstructure model's per-pitcher mean against a Beta-shrunk as-of prior and against realized rates. If your model loses on correlation, stop. The aggregate result is already determined.
 
-3. **Pitch-level matters for in-game / live-tick prop pricing where microstructure compounds.** For pre-event aggregated props, it doesn't. The public framing that "sharp shops use pitch-level, so we should too" conflates two domains with different aggregation structure.
+3. **Component-level metrics are necessary but not sufficient.** Every component of the pitch-level architecture beat its flat baseline. The aggregate failed anyway. Test at the prediction unit, not the component unit — the only metric that matters is the one your bets settle on.
 
-4. **Granularity is not the same as informativeness.** The PA-level prior used ~21 rows per start. The pitch-level model used ~95. The 95-row model produced a worse aggregate K rate, because each row carries less unit-mean signal than the cumulative as-of prior.
+4. **Pitch-level architectures excel where microstructure compounds, not where it averages.** In-game / live-tick props where the bet unit IS the at-bat or the pitch are exactly where pitch-level wins. Pre-game aggregated props where the bet settles on a sum over many micro-units are where it loses, unless the per-unit mean is already competitive.
+
+5. **Granularity is not the same as informativeness.** The PA-level prior used ~21 rows per start. The pitch-level model used ~95. The 95-row model produced a worse aggregate K rate, because each row carries less unit-mean signal than the cumulative as-of prior — and the aggregate target depends on the per-unit mean, not the row count.
 
 ---
 

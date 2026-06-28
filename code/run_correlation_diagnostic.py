@@ -1,10 +1,22 @@
 """
-Reproduces the core finding: a microstructure simulator's per-pitcher mean
-estimate is shrunk toward the league mean and correlates less with realized
-rates than a Beta-shrunk cumulative as-of prior.
+Demonstrates the MECHANISM behind the empirical finding — it does NOT
+regenerate the empirical 0.576/0.378 correlation numbers from the actual MLB data.
 
-This is a SYNTHETIC reproduction of the diagnostic from the underlying barrel
-project. It demonstrates the mechanism in a controlled setting:
+The empirical numbers were produced by the private parent project's full
+backtest harness (see README's "Reproducibility — and its limitations" section).
+This script shows that, under controlled synthetic conditions, a league-trained
+microstructure proxy on noisy observable features will shrink its per-pitcher
+mean estimates toward the league mean. That shrinkage is the proposed mechanism
+behind the empirical correlation gap.
+
+This is a mechanism plausibility demonstration, not an independent empirical
+reproduction. A reader who runs this script should expect numbers of the same
+ORDER (prior r ~ 0.95, sim r ~ 0.45) but not exact matches to the empirical
+numbers (prior r = 0.576, sim r = 0.378). The empirical numbers have additional
+noise sources (~50-PA holdout windows, real-world pitcher heterogeneity beyond
+the synthetic model) that the synthetic version does not capture.
+
+What this script does:
 
     1. We generate 200 pitchers with true K rates drawn from a realistic
        distribution (mean 0.23, std 0.043, matching MLB starter data).
@@ -17,8 +29,10 @@ project. It demonstrates the mechanism in a controlled setting:
        on radar-gun physics that miss deception/tunneling.
     5. We compare per-pitcher correlation with the true rate.
 
-The diagnostic numbers reproduced here (~0.93 prior vs ~0.50 sim) match the
-underlying study within sampling noise.
+Expected synthetic output: prior r ~ 0.95+, sim r ~ 0.45. These are NOT the
+empirical numbers — the empirical numbers (prior r = 0.576, sim r = 0.378) come
+from a noisier real-world holdout. What matters is that the DIRECTION matches:
+the prior is more strongly correlated with the true rate than the sim.
 
 Run: python run_correlation_diagnostic.py
 Outputs:
